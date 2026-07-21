@@ -1,0 +1,22 @@
+﻿{
+    "name": "犟种宝宝 - 3D模型搭建",
+    "short_name": "犟种宝宝",
+    "description": "上传照片生成专属3D角色模型",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#FFF5F0",
+    "theme_color": "#FF6B35",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/static/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/static/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

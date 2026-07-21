@@ -1,0 +1,73 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>犟种宝宝 — 3D 模型搭建平台</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- PWA -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#FF6B35">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="犟种宝宝">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/sw.js');
+      }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <div class="logo">🐣</div>
+            <h1>犟种宝宝</h1>
+            <p class="subtitle">上传一张照片，生成你的专属 3D 角色</p>
+        </div>
+
+        <!-- 上传区 -->
+        <div class="upload-zone" id="uploadZone">
+            <div class="icon">📷</div>
+            <div class="text">点击上传照片 或 拖拽到此处</div>
+            <div class="hint">支持 JPG / PNG / WebP，最大 10MB</div>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" capture="environment" hidden>
+
+        <!-- 预览图 -->
+        <img id="previewImage" class="preview-image" alt="预览">
+
+        <!-- 进度 -->
+        <div class="progress-section" id="progressSection">
+            <div class="spinner"></div>
+            <div class="progress-text">AI 正在分析你的面部特征...</div>
+            <div class="progress-sub" id="progressSub"></div>
+        </div>
+
+        <!-- 结果 -->
+        <div class="result-section" id="resultSection">
+            <div class="success-icon">✅</div>
+            <div class="result-title">3D 模型生成成功！</div>
+            <div class="result-params" id="resultParams"></div>
+            <div style="display:flex;gap:10px;margin-top:16px;">
+                <a class="btn btn-primary" id="btnPreview" href="#">
+                    🎮 3D 预览 & 微调
+                </a>
+            </div>
+            <a class="btn btn-secondary" id="btnDownload" href="#" style="margin-top:10px;">
+                📥 下载 GLB 模型
+            </a>
+            <button class="btn btn-sm" onclick="resetForm()" style="margin-top:12px;color:var(--text-light);">
+                🔄 重新上传
+            </button>
+        </div>
+
+        <!-- Toast -->
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <script src="/static/js/upload.js"></script>
+</body>
+</html>
+

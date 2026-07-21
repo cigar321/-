@@ -1,0 +1,309 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D 预览 — 犟种宝宝</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .preview-container { height: 100vh; display: flex; flex-direction: column; }
+        .viewer { flex: 1; background: linear-gradient(180deg, #e8e8f0 0%, #d0d0d8 50%, #c8c8d0 100%); position: relative; }
+        .viewer canvas { display: block; }
+        .viewer-hint {
+            position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.5); color: white; padding: 6px 14px;
+            border-radius: 20px; font-size: 12px; pointer-events: none;
+        }
+        .controls {
+            background: white; padding: 14px 16px 20px;
+            box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+            max-height: 45vh; overflow-y: auto;
+        }
+        .controls h3 { font-size: 15px; margin-bottom: 10px; }
+        .slider-group { margin-bottom: 10px; }
+        .slider-row {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+        }
+        .slider-row label { width: 60px; font-size: 12px; color: #888; flex-shrink: 0; text-align: right; }
+        .slider-row input[type="range"] { flex: 1; accent-color: #FF6B35; height: 4px; }
+        .slider-row span { width: 36px; text-align: left; font-size: 12px; font-weight: 600; }
+        .btn-row { display: flex; gap: 8px; margin-top: 12px; }
+        .btn-row .btn { flex: 1; font-size: 14px; padding: 12px; }
+        .loading-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: center; z-index: 10;
+        }
+        .loading-overlay .spinner { width: 40px; height: 40px; }
+    </style>
+    <!-- PWA -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#FF6B35">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="3D预览">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+</head>
+<body>
+    <div class="preview-container">
+        <!-- 3D 视口 -->
+        <div class="viewer" id="viewer">
+            <div class="viewer-hint" id="viewerHint">🖐 拖拽旋转 · 双指缩放</div>
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="spinner"></div>
+            </div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="controls" id="controls">
+            <h3>🔧 面部参数微调</h3>
+            <div class="slider-group" id="sliderGroup"></div>
+            <div class="btn-row">
+                <button class="btn btn-primary" id="btnApply">🔄 应用调整</button>
+                <a class="btn btn-secondary" id="btnDownload" href="#">📥 下载模型</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js CDN -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const SESSION_ID = '{{ session_id }}';
+    const MODEL_URL = `/api/model/${SESSION_ID}`;
+    const PARAMS_URL = `/api/params/${SESSION_ID}`;
+
+    // ── Three.js 初始化 ──
+    const viewer = document.getElementById('viewer');
+    const viewerHint = document.getElementById('viewerHint');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xd8d8e0);
+    scene.fog = new THREE.Fog(0xd8d8e0, 3, 8);
+
+    const camera = new THREE.PerspectiveCamera(45,
+        viewer.clientWidth / viewer.clientHeight, 0.1, 20);
+    camera.position.set(0, 1.2, 3.5);
+    camera.lookAt(0, 1.2, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(viewer.clientWidth, viewer.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    viewer.appendChild(renderer.domElement);
+
+    // 光照
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+    scene.add(ambientLight);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    keyLight.position.set(3, 5, 4);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(512, 512);
+    scene.add(keyLight);
+    const rimLight = new THREE.DirectionalLight(0xff9966, 1.5);
+    rimLight.position.set(-2, 1, -3);
+    scene.add(rimLight);
+    const fillLight = new THREE.DirectionalLight(0x8899cc, 0.8);
+    fillLight.position.set(0, 0.5, 2);
+    scene.add(fillLight);
+
+    // 地面
+    const groundGeo = new THREE.PlaneGeometry(6, 6);
+    const groundMat = new THREE.MeshStandardMaterial({
+        color: 0xc8c8d0, roughness: 0.9
+    });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.5;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // 控制器
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1.2, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.minDistance = 1.5;
+    controls.maxDistance = 6;
+    controls.maxPolarAngle = Math.PI * 0.7;
+    controls.update();
+
+    // ── 加载模型 ──
+    const loader = new GLTFLoader();
+    let currentModel = null;
+
+    function loadModel(url) {
+        loadingOverlay.style.display = 'flex';
+        viewerHint.style.display = 'none';
+
+        // 移除旧模型
+        if (currentModel) {
+            scene.remove(currentModel);
+            currentModel = null;
+        }
+
+        loader.load(url,
+            (gltf) => {
+                currentModel = gltf.scene;
+                scene.add(currentModel);
+                loadingOverlay.style.display = 'none';
+
+                // 居中模型
+                const box = new THREE.Box3().setFromObject(currentModel);
+                const center = box.getCenter(new THREE.Vector3());
+                currentModel.position.y = -center.y + 0.5;
+
+                viewerHint.style.display = 'block';
+            },
+            (progress) => {
+                if (progress.total > 0) {
+                    const pct = Math.round(progress.loaded / progress.total * 100);
+                    loadingOverlay.querySelector('.spinner').style.display = 'none';
+                }
+            },
+            (error) => {
+                console.error('模型加载失败:', error);
+                loadingOverlay.innerHTML = '<div style="color:white;text-align:center;">模型加载失败<br><small>请刷新重试</small></div>';
+            }
+        );
+    }
+
+    loadModel(MODEL_URL);
+
+    // ── 微调滑块 ──
+    const sliderGroup = document.getElementById('sliderGroup');
+    const sliders = {};
+    const sliderDefs = [
+        { key: 'faceWidth',   label: '脸宽', min: 0, max: 1, step: 0.01 },
+        { key: 'cheekPuff',   label: '脸颊', min: 0, max: 1, step: 0.01 },
+        { key: 'chinPoint',   label: '下巴', min: 0, max: 1, step: 0.01 },
+        { key: 'eyeDistance', label: '眼距', min: 0, max: 1, step: 0.01 },
+        { key: 'eyeSize',     label: '眼大', min: 0, max: 1, step: 0.01 },
+        { key: 'mouthWidth',  label: '嘴宽', min: 0, max: 1, step: 0.01 },
+        { key: 'mouthHeight', label: '嘴位', min: 0, max: 1, step: 0.01 },
+    ];
+
+    // 获取当前参数
+    async function loadParams() {
+        try {
+            const resp = await fetch(PARAMS_URL);
+            const data = await resp.json();
+            if (data.code === 0) {
+                buildSliders(data.data);
+            }
+        } catch (e) {
+            console.error('参数加载失败:', e);
+        }
+    }
+
+    function buildSliders(params) {
+        sliderGroup.innerHTML = '';
+        for (const def of sliderDefs) {
+            const val = params[def.key] ?? 0.5;
+            sliders[def.key] = val;
+
+            const row = document.createElement('div');
+            row.className = 'slider-row';
+            row.innerHTML = `
+                <label>${def.label}</label>
+                <input type="range" min="${def.min}" max="${def.max}" step="${def.step}"
+                       value="${val}" data-key="${def.key}">
+                <span>${val.toFixed(2)}</span>
+            `;
+            sliderGroup.appendChild(row);
+
+            const input = row.querySelector('input');
+            const span = row.querySelector('span');
+            input.addEventListener('input', () => {
+                const v = parseFloat(input.value);
+                sliders[def.key] = v;
+                span.textContent = v.toFixed(2);
+            });
+        }
+    }
+
+    loadParams();
+
+    // ── 应用调整 ──
+    document.getElementById('btnApply').addEventListener('click', async () => {
+        const btn = document.getElementById('btnApply');
+        btn.disabled = true;
+        btn.textContent = '⏳ 生成中...';
+
+        try {
+            const resp = await fetch('/api/regenerate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: SESSION_ID,
+                    params: sliders
+                })
+            });
+            const data = await resp.json();
+            if (data.code === 0) {
+                // 重新加载模型（加时间戳避免缓存）
+                loadModel(MODEL_URL + '?t=' + Date.now());
+                showToast('模型已更新！');
+            }
+        } catch (e) {
+            showToast('应用失败，请重试');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '🔄 应用调整';
+        }
+    });
+
+    document.getElementById('btnDownload').href = MODEL_URL;
+
+    // ── Toast ──
+    function showToast(msg) {
+        let toast = document.querySelector('.toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.className = 'toast';
+            document.body.appendChild(toast);
+        }
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // ── 响应式 ──
+    window.addEventListener('resize', () => {
+        camera.aspect = viewer.clientWidth / viewer.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(viewer.clientWidth, viewer.clientHeight);
+    });
+
+    // ── 渲染循环 ──
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // 拖动模型时隐藏提示
+    renderer.domElement.addEventListener('pointerdown', () => {
+        viewerHint.style.opacity = '0.3';
+    });
+    renderer.domElement.addEventListener('pointerup', () => {
+        viewerHint.style.opacity = '1';
+    });
+    </script>
+</body>
+</html>
+

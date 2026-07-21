@@ -1,0 +1,44 @@
+﻿# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+MemoryCaptures/
+
+# IDE
+.idea/
+.vs/
+*.csproj
+*.sln
+*.user
+*.userosscache
+*.suo
+*.userprefs
+
+# Asset meta (Unity generates these)
+# Keep: *.meta
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build output
+unity-project/Builds/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Env
+.env
+.env.local
+# 生成的文件不提交
+model-platform/static/models/*
+model-platform/uploads/*
+!model-platform/static/models/.gitkeep
+!model-platform/uploads/.gitkeep

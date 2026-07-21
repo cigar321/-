@@ -1,0 +1,17 @@
+﻿# Render 部署配置
+# 将此文件放在 model-platform/ 目录下
+# Render 会自动检测并部署
+
+services:
+  - type: web
+    name: stubborn-baby
+    env: python
+    region: singapore         # 亚洲区域，国内访问更快
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    plan: free                # 免费套餐
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PORT
+        value: "10000"
