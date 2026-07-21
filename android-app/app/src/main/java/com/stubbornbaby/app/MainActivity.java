@@ -1,4 +1,4 @@
-﻿package com.stubbornbaby.app;
+package com.stubbornbaby.app;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
