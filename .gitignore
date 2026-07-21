@@ -42,3 +42,15 @@ model-platform/static/models/*
 model-platform/uploads/*
 !model-platform/static/models/.gitkeep
 !model-platform/uploads/.gitkeep
+
+# Node
+node_modules/
+
+# 临时/无关文件
+douyin_*.png
+frames/
+*_search.html
+check_repo.py
+create_github_repo.py
+create_repo.py
+read_cookies.py
