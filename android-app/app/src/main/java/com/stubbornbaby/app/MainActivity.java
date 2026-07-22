@@ -38,13 +38,13 @@ public class MainActivity extends AppCompatActivity {
     private ValueCallback<Uri[]> filePathCallback;
     private String currentPhotoPath;
 
-    // 骞冲彴鍦板潃 - 閮ㄧ讲鍒?Render 鍚庢浛鎹负鍏綉鍦板潃
+    // 平台地址 - 部署到 Render 后替换为公网地址
     private static final String PLATFORM_URL = "http://192.168.1.42:5000";
 
     private final ActivityResultLauncher<String> cameraPermissionLauncher =
         registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
             if (granted) openCamera();
-            else Toast.makeText(this, "闇€瑕佺浉鏈烘潈闄?, Toast.LENGTH_SHORT).show();
+            else Toast.makeText(this, "需要相机权限", Toast.LENGTH_SHORT).show();
         });
 
     private final ActivityResultLauncher<Intent> cameraLauncher =
@@ -82,7 +82,7 @@ public class MainActivity extends AppCompatActivity {
         webView = findViewById(R.id.webview);
         setupWebView();
 
-        // 鍔犺浇骞冲彴
+        // 加载平台
         webView.loadUrl(PLATFORM_URL);
     }
 
@@ -123,7 +123,8 @@ public class MainActivity extends AppCompatActivity {
                     FileChooserParams params) {
                 filePathCallback = callback;
 
-                // 妫€鏌ユ槸鍚︽潵鑷浉鏈烘崟鑾?                if (params.isCaptureEnabled()) {
+                // 检查是否来自相机捕获
+                if (params.isCaptureEnabled()) {
                     if (checkSelfPermission(Manifest.permission.CAMERA)
                             != PackageManager.PERMISSION_GRANTED) {
                         cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
@@ -159,9 +160,9 @@ public class MainActivity extends AppCompatActivity {
     private void openFileChooser(WebChromeClient.FileChooserParams params) {
         Intent intent = params.createIntent();
         try {
-            fileChooserLauncher.launch(Intent.createChooser(intent, "閫夋嫨鍥剧墖"));
+            fileChooserLauncher.launch(Intent.createChooser(intent, "选择图片"));
         } catch (Exception e) {
-            Toast.makeText(this, "鏃犳硶鎵撳紑鏂囦欢閫夋嫨鍣?, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "无法打开文件选择器", Toast.LENGTH_SHORT).show();
             if (filePathCallback != null) {
                 filePathCallback.onReceiveValue(null);
                 filePathCallback = null;
